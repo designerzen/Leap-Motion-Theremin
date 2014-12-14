@@ -42,7 +42,7 @@ var View = (function(window){
 		// five vertical bars, each one represents one channel...
 		
 		this.scene = new THREE.Scene();
-		this.scene.fog = new THREE.FogExp2( colour, 0.0008 );
+		this.scene.fog = new THREE.FogExp2( 0x00ff77, 0.0008 );
 		
 		this.renderer = new THREE.WebGLRenderer({
 			alpha: false
@@ -62,7 +62,7 @@ var View = (function(window){
 		// the segmentsWidth, and the third argument is the segmentsHeight.  Increasing the 
 		// segmentsWidth and segmentsHeight will yield a more perfect circle, but will degrade
 		// rendering performance
-		sphere = new THREE.Mesh(new THREE.SphereGeometry(15, 10, 10), new THREE.MeshNormalMaterial() );
+		sphere = new THREE.Mesh(new THREE.SphereGeometry(15, 18, 18), new THREE.MeshNormalMaterial() );
 		sphere.position.x = -10;
 		sphere.overdraw = true;
 		this.scene.add( sphere );

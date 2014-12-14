@@ -1,8 +1,8 @@
 var theremin = new Theremin( );
 var thereminLeft = new Theremin( theremin.getAudioContext(), true );
-//var thereminLeft = new Theremin( );
-
-var view = new View( document.body, theremin.getAnalyser() );
+var content = document.getElementById('content');
+var visualiser = document.getElementById('visualiser');
+var view = new View( visualiser, theremin.getAnalyser() );
 var hands = 0;
 var riggedHandPlugin;
 var userEngaged = false;
@@ -106,9 +106,9 @@ Leap.loop({
 	parent: view.scene,
 	renderer: view.renderer,
 	camera: view.camera,
-	scale: getParam('scale') || 1,
-	positionScale: getParam('positionScale') || 1,
-	offset: new THREE.Vector3(0, -10, -20),
+	scale: getParam('scale') || 0.3,
+	positionScale: getParam('positionScale') || 0.4,
+	offset: new THREE.Vector3(0, -70, -90),
 	boneColors: function (boneMesh, leapHand){
 		  if ((boneMesh.name.indexOf('Finger_') == 0) ) {
 			return {
@@ -134,7 +134,7 @@ Leap.loop({
 			//thereminLeft.start();
 			break;
 	}
-	console.error(hand.type+' focus '+hands);
+	//console.error(hand.type+' focus '+hands);
 })
 .on('handLost', function(hand){
 	hands--;
@@ -149,7 +149,7 @@ Leap.loop({
 			thereminLeft.stop();
 			break;
 	}
-	console.error(hand.type+' unfocus '+hands);
+	//console.error(hand.type+' unfocus '+hands);
 })
 .use('playback', {
 	recording: './left-or-right-77fps.json.lz',
@@ -167,3 +167,4 @@ Leap.loop({
 });
 
 riggedHandPlugin = Leap.loopController.plugins.riggedHand;
+content.className = 'active';

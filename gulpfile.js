@@ -128,7 +128,7 @@ gulp.task('models', function() {
 
 // Do stuff with our javascripts for DEBUGGING
 gulp.task('scripts-vendor', function() {
-	return  gulp.src( SOURCE_FOLDER+'javascript/vendor/**/*.js' )
+	return  gulp.src( SOURCE_FOLDER+'javascript/vendor/*.js' )
             .pipe( gulp.dest( destination.scripts+'/vendor/' ) )
 });
 	
