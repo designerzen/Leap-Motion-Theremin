@@ -3,6 +3,7 @@ var View = (function(window){
 	var 
 		sphere,
 		cube,
+		cubeLeft,
 		dataArray,
 		bufferLength,
 		particles = [],
@@ -15,7 +16,12 @@ var View = (function(window){
 	this.pointLight;
 	*/
 	var group;
-	 var colour = 0x222222;
+	var colour = 0x222222,
+		normalMaterial,
+		normalMaterialLeft,
+		phongMaterial;
+	
+	var glitchPass, effectFocus, effectFilm;
 	
 	// pass in the dom elements
 	function View( element, audioAnalyser )
@@ -41,21 +47,34 @@ var View = (function(window){
 		this.renderer = new THREE.WebGLRenderer({
 			alpha: false
 		});
-		var normalMaterial = new THREE.MeshNormalMaterial();
+		//normalMaterial = new THREE.MeshNormalMaterial();
+		normalMaterial = new THREE.MeshLambertMaterial();
+		normalMaterial.transparent = true
+		normalMaterial.opacity = 0.4;
+		
+		normalMaterialLeft = new THREE.MeshLambertMaterial();
+		normalMaterialLeft.transparent = true
+		normalMaterialLeft.opacity = 0.4;
+		//phongMaterial = new THREE.MeshPhongMaterial(  { ambient: 0xaaaaaa, color: 0xeeeeee, specular: 0xffffff, shininess: 230, shading: THREE.FlatShading }  );
+		
 		// Sphere
 		// the first argument of THREE.SphereGeometry is the radius, the second argument is
 		// the segmentsWidth, and the third argument is the segmentsHeight.  Increasing the 
 		// segmentsWidth and segmentsHeight will yield a more perfect circle, but will degrade
 		// rendering performance
-		sphere = new THREE.Mesh(new THREE.SphereGeometry(15, 10, 10), normalMaterial);
+		sphere = new THREE.Mesh(new THREE.SphereGeometry(15, 10, 10), new THREE.MeshNormalMaterial() );
 		sphere.position.x = -10;
 		sphere.overdraw = true;
 		this.scene.add( sphere );
 		
 		
-		cube = new THREE.Mesh(new THREE.BoxGeometry(20, 40, 40 ), normalMaterial);
+		cube = new THREE.Mesh(new THREE.BoxGeometry(20, 40, 20 ), normalMaterial );
 		cube.position.x = 10;
 		this.scene.add( cube );
+		
+		cubeLeft = new THREE.Mesh(new THREE.BoxGeometry(20, 40, 20 ), normalMaterialLeft );
+		cubeLeft.position.x = -30;
+		this.scene.add( cubeLeft );
 		
 		var generateTexture = function () {
 
@@ -98,13 +117,20 @@ var View = (function(window){
 			geometry.vertices.push( vertex );
 		}
 		
-		for ( var i = 0; i < 2; i ++ ) {
+		for ( var i = 0; i < 1; i ++ ) {
 
 				//color  = parameters[i][0];
 				//sprite = parameters[i][1];
 				//size   = parameters[i][2];
 				var pointSize = 10;
-				var material = new THREE.PointCloudMaterial( { size: pointSize, vertexColors: THREE.VertexColors, blending: THREE.AdditiveBlending, depthTest: false }  );
+				var material = new THREE.PointCloudMaterial( 
+					{ 
+						size: pointSize, 
+						 vertexColors: THREE.VertexColors, 
+						 blending: THREE.AdditiveBlending, 
+						 depthTest: false,
+						 sizeAttenuation : false
+				}  );
 				//var material = new THREE.PointCloudMaterial( { size: 30, map: texture, blending: THREE.AdditiveBlending, depthTest: false, transparent : true } );
 				material.color.setHSL( 0xffffff, 0xffffff, Math.random()*0xffffff );
 
@@ -175,8 +201,17 @@ var View = (function(window){
 		var renderModel = new THREE.RenderPass( this.scene, this.camera );
 		//var effectBloom = new THREE.BloomPass( 0.0000000075 );
 		// noiseIntensity, scanlinesIntensity, scanlinesCount, grayscale
-		var effectFilm = new THREE.FilmPass( 0.8, 0.7, 1448, false );
-		var effectFocus = new THREE.ShaderPass( THREE.FocusShader );
+		
+		glitchPass = new THREE.GlitchPass( );
+		glitchPass.uniforms[ 'amount' ].value=0;
+		glitchPass.uniforms[ 'angle' ].value=Math.PI;
+		glitchPass.uniforms[ 'distortion_x' ].value=0;
+		glitchPass.uniforms[ 'distortion_y' ].value=0;
+		glitchPass.uniforms[ 'seed_x' ].value=THREE.Math.randFloat(-0.01,0.01);
+		glitchPass.uniforms[ 'seed_y' ].value=THREE.Math.randFloat(-0.01,0.01);
+		
+		effectFilm = new THREE.FilmPass( 0.8, 0.7, 1448, false );
+		effectFocus = new THREE.ShaderPass( THREE.FocusShader );
 		effectFocus.uniforms[ "screenWidth" ].value = window.innerWidth;
 		effectFocus.uniforms[ "screenHeight" ].value = window.innerHeight;
 		effectFocus.renderToScreen = true;
@@ -185,6 +220,7 @@ var View = (function(window){
 		this.composer.addPass( renderModel );
 		//this.composer.addPass( effectBloom );
 		this.composer.addPass( effectFilm );
+		this.composer.addPass( glitchPass );
 		this.composer.addPass( effectFocus );
 
 		element.appendChild( this.renderer.domElement);
@@ -206,22 +242,64 @@ var View = (function(window){
 
 		return this.renderer.render(this.scene, this.camera);
 	}
-	
-	View.prototype.setFrequency = function( freq )
+	function rgb2hex(red, green, blue) {
+        var rgb = blue | (green << 8) | (red << 16);
+        return '0x' + (0x1000000 + rgb).toString(16).slice(1)
+  	}
+	View.prototype.setFrequencyLeft = function( freq )
 	{
 		//cube.scale.x = freq / 5;
-		cube.scale.y = freq;
+		cubeLeft.scale.y = freq * 4;
+		normalMaterial.color = rgb2hex( 255*freq, 255, 255 );
+		//cube.scale.z = freq / 5;
+	};
+	View.prototype.setFrequencyRight = function( freq )
+	{
+		//cube.scale.x = freq / 5;
+		cube.scale.y = freq * 4;
+		//normalMaterial.color = rgb2hex( 255*freq, 255, 255 );
 		//cube.scale.z = freq / 5;
 	};
 
 	View.prototype.setGain = function( gain )
 	{
-		if (gain > 0) group.scale.x = group.scale.y = group.scale.z = gain;
+		if (gain > 0) group.scale.x = group.scale.y = group.scale.z = 1-gain;
+		//cube.scale.z = gain * 4;
+		normalMaterial.opacity = gain;
+	};
+	
+	View.prototype.setGainLeft = function( gain )
+	{
+		if (gain > 0) group.scale.x = group.scale.y = group.scale.z = 1-gain;
+		//cubeLeft.scale.z = gain * 4;
+		
+		normalMaterialLeft.opacity = gain;
 	};
 	
 	View.prototype.setDistortion = function( value )
 	{
-		if (value > 0) group.scale.x = group.scale.y = group.scale.z = value;
+		if (value > 0) 
+		{
+			/*
+			//glitchPass.uniforms[ 'angle' ].value=THREE.Math.randFloat(-Math.PI,Math.PI);
+			glitchPass.uniforms[ 'distortion_x' ].value=value;
+			glitchPass.uniforms[ 'distortion_y' ].value=value;
+			glitchPass.uniforms[ 'seed_x' ].value=THREE.Math.randFloat(-0.3,0.3);
+			glitchPass.uniforms[ 'seed_y' ].value=THREE.Math.randFloat(-0.3,0.3);
+			*/
+			effectFilm.uniforms.nIntensity.value = value * 500;
+			
+			if ( value > 0.5 )
+			{
+				glitchPass.uniforms[ 'amount' ] = value;// * 400;
+				glitchPass.uniforms[ 'distortion_x' ].value=value;
+				glitchPass.uniforms[ 'distortion_y' ].value=value;
+			}else{
+				glitchPass.uniforms[ 'amount' ] = 0;
+				glitchPass.uniforms[ 'distortion_x' ].value=0;
+				glitchPass.uniforms[ 'distortion_y' ].value=0;
+			}
+		}
 	};
 	
 	View.prototype.getProximityX = function( screenPositionX ){
@@ -251,13 +329,20 @@ var View = (function(window){
 			for(var i = 0; i < bufferLength; ++i) 
 			{
 				var data = dataArray[i];
-
-
+				var dataNext = (i < bufferLength-1) ? dataArray[i+1] : data;
+				var vertex = geom.vertices[i];
+				
+				//vertex.x = data * 30;
+				vertex.y = data * 30;
+				vertex.z = dataNext * 30;
 			 }
+			geom.verticesNeedUpdate = true;
 		}
 		
-		sphere.rotation.y += 0.001;
+		sphere.rotation.y += 0.01;
+		
 		cube.rotation.y -= 0.001;
+		cubeLeft.rotation.y += 0.001;
 		
 		this.renderer.clear();
 		this.composer.render( 0.01 );

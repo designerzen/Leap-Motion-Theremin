@@ -10,26 +10,25 @@ var Theremin = (function(){
 	var initialFreq = 10;//250;
 	var frequencyRange = 150;//6000;
 	var initialVol = 0.2;
-	var isPlaying = false;
-	var isStopped = true;
 
 	var muted = false;
-	function dub(node){
+	
+	function dub(node, context){
 		
-		var dubDelay = audioCtx.createDelay();
-		dubDelay.delayTime.value = 0.5;
+		var dubDelay = context.createDelay();
+		dubDelay.delayTime.value = 0.7;
 		node.connect(dubDelay);
 		
-		var feedback = audioCtx.createGain();
-		feedback.gain.value = 0.8;
+		var feedback = context.createGain();
+		feedback.gain.value = 0.5;
 
-		var filter = audioCtx.createBiquadFilter();
+		var filter = context.createBiquadFilter();
 		filter.frequency.value = 1000;
 
-		delay.connect(feedback);
+		dubDelay.connect(feedback);
 		feedback.connect(filter);
 		filter.connect(dubDelay);
-		dubDelay.connect(audioCtx.destination);
+		dubDelay.connect(context.destination);
 	}
 	
 	function makeDistortionCurve(amount) {
@@ -46,10 +45,13 @@ var Theremin = (function(){
 		return curve;
 	};
 	
-	function Theremin( audioContext )
+	function Theremin( audioContext, dubMode )
 	{
     	var audioCtx = audioContext || new Patch();
-	
+		
+		this.isPlaying = false;
+		this.isStopped = true;
+
 		this.audioContext = audioCtx;
 		
 		// create Oscillator and gain node
@@ -90,7 +92,7 @@ var Theremin = (function(){
 		this.gainNode.gain.value = initialVol;
 		
 		this.gainNode.connect(audioCtx.destination);
-		//dub(this.gainNode);
+		if (dubMode) dub(this.gainNode, audioCtx);
 		
 		return;
 		// effects
@@ -133,26 +135,27 @@ var Theremin = (function(){
 	Theremin.prototype.stop = function()
 	{
 		
-		if (isStopped) return;
+		if (this.isStopped) return;
 		console.error('stop');
 		//gainNode.disconnect(audioCtx.destination);
 		this.oscillator.disconnect(this.delay);
 		this.gainNode.gain.value = SMALLEST;
 		//oscillator.stop();
-		isStopped = true;
+		this.isStopped = true;
 	};
 	
 	Theremin.prototype.start = function()
 	{
-		if (isStopped)
+		
+		if (this.isStopped)
 		{
 			this.gainNode.gain.value = initialVol;
 			this.oscillator.connect(this.delay);
-			isStopped = false;
+			this.isStopped = false;
 			console.error('start');
 		}
-		if (isPlaying) return;
-		isPlaying = true;
+		if (this.isPlaying) return;
+		this.isPlaying = true;
 		this.oscillator.start();
 	};
 	

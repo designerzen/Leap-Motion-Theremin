@@ -1,9 +1,11 @@
-var theremin = new Theremin();
-var thereminLeft = new Theremin( theremin.getAudioContext() );
+var theremin = new Theremin( );
+var thereminLeft = new Theremin( theremin.getAudioContext(), true );
+//var thereminLeft = new Theremin( );
 
 var view = new View( document.body, theremin.getAnalyser() );
 var hands = 0;
 var riggedHandPlugin;
+var userEngaged = false;
 
 function getParam(name) {
 	name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
@@ -27,16 +29,16 @@ Leap.loop({
 		// between -3.6 and +3.6
 		var rotation =  hand.roll();
 		var fist = hand.grabStrength;
+		var deviationX , deviationY, deviationZ;
 		// now determine hand
 		switch(type)
 		{
 			case "right":
-				var deviationX = view.getProximityX( screenPosition.x );
-				view.setFrequency( deviationX );
+				deviationX = view.getProximityX( screenPosition.x );
+				view.setFrequencyRight( deviationX );
 				//theremin.setFrequency( deviationX );
 				theremin.setFrequencyPercent( deviationX );
 				theremin.setDistortion( fist * 400 );
-				view.setDistortion( fist * 400 );
 				if (rotation < -1)
 				{
 					theremin.setType('square');
@@ -50,24 +52,27 @@ Leap.loop({
 					theremin.setType('sine');
 					//console.error( 'sine', rotation );
 				}
-				//var deviationY = view.getProximityY( screenPosition.y );
-				var deviationZ = 1 - ( (hand.palmPosition[1]-60)/ 300);
-				//view.setGain( deviationY );
+				//deviationY = view.getProximityY( screenPosition.y );
+				deviationZ = 1 - ( (hand.palmPosition[1]-60)/ 300);
+				view.setGain( deviationZ );
 				//theremin.setGain( deviationY );
+				//
+				
 				theremin.setGainPercent( deviationZ );
-			
+				view.setDistortion( fist  );
+				if (userEngaged) theremin.start();
 				break;
 				
 			case "left":
 				
-				var deviationX = view.getProximityX( screenPosition.x );
-				view.setFrequency( deviationX );
+				deviationX = view.getProximityX( screenPosition.x );
+				view.setFrequencyLeft( deviationX );
 				//theremin.setFrequency( deviationX );
 				thereminLeft.setFrequencyPercent( deviationX );
 				thereminLeft.setDistortion( fist * 400 );
 				if (rotation < -1)
 				{
-					thereminLeft.setType('square');
+					thereminLeft.setType('sine');
 					//console.error( 'square', rotation );
 
 				} else if (rotation > 0) {
@@ -75,17 +80,22 @@ Leap.loop({
 					//console.error( 'saw', rotation );
 
 				}else{
-					theremin.setType('sine');
+					theremin.setType('square');
 					//console.error( 'sine', rotation );
-				}//var deviationY = view.getProximityY( screenPosition.y );
-				var deviationZ = 1 - ( (hand.palmPosition[1]-60)/ 300);
-				//view.setGain( deviationY );
-				//theremin.setGain( deviationY );
-				thereminLeft.setGainPercent( deviationZ );
-				view.setDistortion( fist * 400 );
-				console.error( deviationZ,type );
-				//console.error( type );
-
+				}
+				
+				//deviationY = view.getProximityY( screenPosition.y );
+				//deviationZ = 1 - ( (hand.palmPosition[1]-60)/ 300);
+				//view.setGainLeft( deviationZ );
+				//
+				//thereminLeft.setGainPercent( deviationZ );
+				thereminLeft.setGainPercent( 1 );
+				view.setDistortion( fist );
+				if (userEngaged) 
+				{
+					thereminLeft.start();
+					
+				}
 				break;
 		}
 	}
@@ -118,13 +128,13 @@ Leap.loop({
 	switch(hand.type)
 	{
 		case "right":
-			theremin.start();
+			//theremin.start();
 			break;
 		case "left":
-			thereminLeft.start();
+			//thereminLeft.start();
 			break;
 	}
-	console.error('focus '+hands);
+	console.error(hand.type+' focus '+hands);
 })
 .on('handLost', function(hand){
 	hands--;
@@ -134,15 +144,26 @@ Leap.loop({
 		case "right":
 			theremin.stop();
 			break;
+			
 		case "left":
 			thereminLeft.stop();
 			break;
 	}
-	console.error('unfocus '+hands);
+	console.error(hand.type+' unfocus '+hands);
 })
 .use('playback', {
 	recording: './left-or-right-77fps.json.lz',
 	timeBetweenLoops: 1000
+})
+ .on('frame', function (frame) {
+    if (frame.hands.length == 0)
+	{
+		userEngaged = false;
+		theremin.stop();
+		thereminLeft.stop();
+	} else{
+		userEngaged = true;
+	}
 });
 
 riggedHandPlugin = Leap.loopController.plugins.riggedHand;
