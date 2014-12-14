@@ -1,0 +1,42 @@
+
+// Colours
+@col-main:      	#2E5C99;
+@col-light:    	 	#fff;
+@col-dark:      	#000;
+@col-accent:    	#32a3a3;
+
+@col-border:		@col-dark;
+@col-bg:			@col-light;
+
+@col-font:			@col-light;
+@col-h1:			@col-light;
+@col-h2:			@col-light;
+@col-h3:			@col-light;
+@col-h4:			@col-light;
+@col-h5:			@col-light;
+@col-h6:			@col-light;
+@col-p:				@col-light;
+
+// Import our other css files directly into this one
+@import "assets";
+@import "reset";
+@import "typography";
+@import "buttons";
+
+
+canvas{
+  pointer-events: none;
+}
+
+label {
+	position: fixed;
+	white-space: nowrap;
+  }
+
+.playback-move-hand{
+	background-color:rgba( 255,255,255, 0.75);
+	-webkit-border-radius: 24px;
+	-moz-border-radius: 24px;
+	border-radius: 24px;
+	
+}
