@@ -13,4 +13,6 @@ Connect your leap motion, fire up [Theremid](http://awesomething.co.uk/theremid/
 
 Then [fork off](https://github.com/designerzen/Leap-Motion-Theremin.git)
 
+---
+
 Released under the [**GPL2.0 license**](http://www.gnu.org/licenses/gpl-2.0.txt). 

@@ -194,7 +194,7 @@ gulp.task('watch', function() {
 // compile all assets & create sourcemaps
 gulp.task('build', 		[ 'css', 'models', 'jade', 'images','scripts-vendor', 'scripts' ] );
 
-// squish everything & concatanate scripts
+// TODO : squish everything & concatanate scripts
 gulp.task('deploy', 	[ 'build' ] );
 
 // create a server to host this project
