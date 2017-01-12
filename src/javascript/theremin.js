@@ -12,13 +12,14 @@ var Theremin = (function(){
 	var initialVol = 0.2;
 
 	var muted = false;
-	
+	var types = ['sine', 'square', 'saw', 'triangle'];
+
 	function dub(node, context){
-		
+
 		var dubDelay = context.createDelay();
 		dubDelay.delayTime.value = 0.7;
 		node.connect(dubDelay);
-		
+
 		var feedback = context.createGain();
 		feedback.gain.value = 0.5;
 
@@ -30,7 +31,7 @@ var Theremin = (function(){
 		filter.connect(dubDelay);
 		dubDelay.connect(context.destination);
 	}
-	
+
 	function makeDistortionCurve(amount) {
 		var k = typeof amount === 'number' ? amount : 50,
 			n_samples = 44100,
@@ -44,16 +45,16 @@ var Theremin = (function(){
 		}
 		return curve;
 	};
-	
+
 	function Theremin( audioContext, dubMode )
 	{
     	var audioCtx = audioContext || new Patch();
-		
+
 		this.isPlaying = false;
 		this.isStopped = true;
 
 		this.audioContext = audioCtx;
-		
+
 		// create Oscillator and gain node
 		this.gainNode 		= audioCtx.createGain();
 		this.biquadFilter	= audioCtx.createBiquadFilter();
@@ -62,7 +63,7 @@ var Theremin = (function(){
 		this.distortion = audioCtx.createWaveShaper();
 		this.delay = audioCtx.createDelay();
 		this.analyser = audioCtx.createAnalyser();
-		
+
 		// connect oscillator to gain node to speakers
 		//oscillator.connect(gainNode);
 		// create initial theremin frequency and volumn values
@@ -74,30 +75,30 @@ var Theremin = (function(){
 		  console.log('Your tone has now stopped playing!');
 		};
 		this.oscillator.connect(this.delay);
-		
+
 		this.delay.delayTime.value = 0.1;
 		this.delay.connect(this.analyser);
-		
+
 		this.analyser.minDecibels = -90;
 		this.analyser.maxDecibels = -10;
 		this.analyser.smoothingTimeConstant = 0.85
 		this.analyser.connect(this.distortion);
-		
+
 		this.distortion.oversample = '4x';//distortion.connect(convolver);
 		this.distortion.curve = makeDistortionCurve(0);
 		this.distortion.connect(this.gainNode);
 		//biquadFilter.connect(this.gainNode);
 		//convolver.connect(this.gainNode);
-		
+
 		this.gainNode.gain.value = initialVol;
-		
+
 		this.gainNode.connect(audioCtx.destination);
 		if (dubMode) dub(this.gainNode, audioCtx);
-		
+
 		return;
 		// effects
 		this.distortion.curve = new Float32Array;
-		
+
 		this.biquadFilter.gain.value = 0;
 		this.convolver.buffer = undefined;
 		//if(voiceSetting == "distortion") {
@@ -108,20 +109,20 @@ var Theremin = (function(){
 			this.biquadFilter.type = "lowshelf";
 			this.biquadFilter.frequency.value = 1000;
 			this.biquadFilter.gain.value = 25;
-		//} 
+		//}
 	}
-	
+
 	Theremin.prototype.getAudioContext = function()
 	{
-		return this.audioContext;	
+		return this.audioContext;
 	}
 	Theremin.prototype.getAnalyser = function()
 	{
-		return this.analyser;	
+		return this.analyser;
 	}
 	Theremin.prototype.toggleMute = function()
 	{
-		if( !muted ) 
+		if( !muted )
 		{
 			this.gainNode.disconnect(this.audioContext.destination);
 			muted = true;
@@ -131,41 +132,47 @@ var Theremin = (function(){
 		};
 		return muted;
 	};
-	
+
 	Theremin.prototype.stop = function()
 	{
-		
+
 		if (this.isStopped) return;
-		console.error('stop');
+		//console.error('stop');
 		//gainNode.disconnect(audioCtx.destination);
 		this.oscillator.disconnect(this.delay);
 		this.gainNode.gain.value = SMALLEST;
 		//oscillator.stop();
 		this.isStopped = true;
 	};
-	
+
 	Theremin.prototype.start = function()
 	{
-		
+
 		if (this.isStopped)
 		{
 			this.gainNode.gain.value = initialVol;
 			this.oscillator.connect(this.delay);
 			this.isStopped = false;
-			console.error('start');
+			//console.error('start');
 		}
 		if (this.isPlaying) return;
 		this.isPlaying = true;
 		this.oscillator.start();
 	};
-	
+
 	Theremin.prototype.setDistortion = function( value )
 	{
 		this.distortion.curve = makeDistortionCurve(value);
 	};
-	
+
 	Theremin.prototype.setType = function( value )
 	{
+		/*
+		// if it isn't a number...
+		if (isNaN(value))
+		{
+			value = types.indexOf( value.toLowerCase() );
+		}*/
 		this.oscillator.type = value;
 	};
 	Theremin.prototype.setFrequencyPercent = function( freq )
@@ -191,14 +198,12 @@ var Theremin = (function(){
 		this.gainNode.gain.value = gain;
 		//console.log( gain );
 	};
-	
-	return Theremin;
-	
-})();
 
+	return Theremin;
+
+})();
 
  // rC = Math.floor((gainNode.gain.value/maxVol)*30);
 
  // oscillator.frequency.value = (KeyX/WIDTH) * maxFreq;
   //gainNode.gain.value = (KeyY/HEIGHT) * maxVol;
-

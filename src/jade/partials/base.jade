@@ -1,35 +1,29 @@
-include doctype
-
-html(class='no-js')
+doctype html
+html(lang="en",class='no-js')
 
 	head
 		meta(charset='utf-8')
 		meta(http-equiv='X-UA-Compatible', content='IE=edge')
 		title Theremid - A Leap Motion Theremin
 		meta(name="description", content="leap motion")
-		meta(name="viewport", content="width=device-width, initial-scale=1")
-		//- meta(name="viewport", content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no")
+		meta(name="viewport", content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no")
 		link(rel="stylesheet", href="css/style.css")
-		
-	body
-		//if lt IE 8
-			p.chromeframe.
-			You are using an <strong>outdated</strong> browser.
-			Please <a href="http://browsehappy.com/">upgrade your browser</a>
-			to improve your experience.
 
-		//- Loading class always gets put on the content element until assets 
+	body
+		//- Loading class always gets put on the content element until assets
 		//- Have been loaded into memory, at which point this class is removed from the #content element
 		#content.loading
 			//- Permanent click tag overlaid button
 			//- Where we stick in our content
 			block content
-			
-		footer
-			block footer
-			
+
+		block footer
+			//- Footer injection
+
 		//- Javascripts :
 		script(src="js/vendor/three.68.js")
+		script(src="js/vendor/three.kludge.js")
+		//- script(src="js/vendor/three.69.js")
 		script(src="js/vendor/three.trackball.js")
 		script(src="js/vendor/leap-0.6.4.js")
 		script(src="js/vendor/leap.plugins-0.1.10.js")
@@ -44,4 +38,4 @@ html(class='no-js')
 			e=o.createElement(i);r=o.getElementsByTagName(i)[0];
 			e.src='//www.google-analytics.com/analytics.js';
 			r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));
-			ga('create','UA-32534181-1');ga('send','pageview'); 
+			ga('create','UA-32534181-1');ga('send','pageview');

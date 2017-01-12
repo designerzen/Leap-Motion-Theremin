@@ -23,24 +23,25 @@ var connect = require('gulp-connect');
 // =======================---------------- CONFIGURATION --------------------
 
 // Set up paths here!
-var SOURCE_FOLDER 			= 'src/';		// Source files Root
-var BUILD_FOLDER 			= 'build/';		// Where the initial build occurs (debugable)
-var DISTRIBUTION_FOLDER 	= 'dist/';		// Once debugging is complete, copy to server ready files here
+var SOURCE_FOLDER 			= './src/';		// Source files Root
+var BUILD_FOLDER 			= './build/';		// Where the initial build occurs (debugable)
+var DISTRIBUTION_FOLDER 	= './dist/';		// Once debugging is complete, copy to server ready files here
 
 // Where do our source files live?
 var source = {
 	styles 	: SOURCE_FOLDER+'less/style.less',
-	scripts : [ 
-		/*SOURCE_FOLDER+'javascript/vendor/three.js',  
-		SOURCE_FOLDER+'javascript/vendor/three.*.js',  
-		SOURCE_FOLDER+'javascript/vendor/leap-*.js', 
-		SOURCE_FOLDER+'javascript/vendor/leap.*.js', 
-		SOURCE_FOLDER+'javascript/vendor/*rigged*.js', 
+	scripts : [
+		/*SOURCE_FOLDER+'javascript/vendor/three.js',
+		SOURCE_FOLDER+'javascript/vendor/three.*.js',
+		SOURCE_FOLDER+'javascript/vendor/leap-*.js',
+		SOURCE_FOLDER+'javascript/vendor/leap.*.js',
+		SOURCE_FOLDER+'javascript/vendor/*rigged*.js',
 		//SOURCE_FOLDER+'javascript/vendor/*.js', */
 		SOURCE_FOLDER+'javascript/vendor/geometries/*.js',
 		SOURCE_FOLDER+'javascript/vendor/shaders/*.js',
 		SOURCE_FOLDER+'javascript/vendor/postprocessing/*.js',
 		//SOURCE_FOLDER+'javascript/vendor/renderers/*.js',
+		SOURCE_FOLDER+'javascript/vendor/detector.js',
 		SOURCE_FOLDER+'javascript/view.js',
 		SOURCE_FOLDER+'javascript/theremin.js',
 		SOURCE_FOLDER+'javascript/main.js'
@@ -131,7 +132,8 @@ gulp.task('scripts-vendor', function() {
 	return  gulp.src( SOURCE_FOLDER+'javascript/vendor/*.js' )
             .pipe( gulp.dest( destination.scripts+'/vendor/' ) )
 });
-	
+
+
 gulp.task('scripts', function() {
     // Minify and copy all JavaScript (except vendor scripts)
     // with sourcemaps all the way down
@@ -140,16 +142,22 @@ gulp.task('scripts', function() {
 	var sourcemaps = require('gulp-sourcemaps');    // create source maps for debugging!
 
 	return  gulp.src( source.scripts )
-            .pipe( sourcemaps.init() )
+            //.pipe( sourcemaps.init() )
             // combine multiple files into one!
             .pipe( concat('main.min.js') )
 			//.pipe( jshint('.jshintrc'))
 			//.pipe( jshint.reporter('default') )
 			// create source maps
-            .pipe( sourcemaps.write() )
+            //.pipe( sourcemaps.write() )
             .pipe( gulp.dest( destination.scripts ) );//.pipe(connect.reload());
 });
 
+
+gulp.task('distribute', function() {
+	var ghPages = require('gulp-gh-pages');
+	return gulp.src( BUILD_FOLDER + '**/*' )
+            .pipe( ghPages() );
+});
 
 // Utilities =====================================================
 
@@ -164,7 +172,7 @@ gulp.task('watch', function() {
 
   // Create LiveReload server
   //livereload.listen();
-    
+
   // Watch any files in dist/, reload on change
   gulp.watch([source.jade], ['jade']);
   gulp.watch([source.scripts], ['scripts']);
@@ -178,13 +186,13 @@ gulp.task('watch', function() {
 
 // Assembly
 
-1. Compile css from less 
+1. Compile css from less
 2. Squish css
 
 3. Compile Jade templates
 4. Inject css into header
 5. Inline css into page elements
-6. Compress html 
+6. Compress html
 
 7. Minify Images
 
@@ -194,11 +202,18 @@ gulp.task('watch', function() {
 // compile all assets & create sourcemaps
 gulp.task('build', 		[ 'css', 'models', 'jade', 'images','scripts-vendor', 'scripts' ] );
 
-// TODO : squish everything & concatanate scripts
-gulp.task('deploy', 	[ 'build' ] );
+// squish everything & concatanate scripts
+gulp.task('deploy', function(callback) {
+	sequencer(
+		'clean',
+		'build',
+		'distribute',
+    callback);
+});
+
 
 // create a server to host this project
-gulp.task('serve', 		['build','webserver', 'watch'] );
+gulp.task('test', 		['build','webserver', 'watch'] );
 
 
 // The default task (called when you run `gulp` from cli)
