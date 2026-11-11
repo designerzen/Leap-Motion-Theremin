@@ -70,6 +70,24 @@ button[aria-pressed="true"] {
 	color: #04050a;
 }
 
+/* Sound is wanted but the browser is waiting for a gesture before it will play. */
+button.waiting {
+	animation: waiting 1.6s ease-in-out infinite;
+}
+
+@keyframes waiting {
+	50% {
+		box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 35%, transparent);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	button.waiting {
+		animation: none;
+		box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+	}
+}
+
 button:focus-visible,
 select:focus-visible,
 input:focus-visible,

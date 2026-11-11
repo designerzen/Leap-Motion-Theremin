@@ -6,43 +6,48 @@ const waveform = document.querySelector<HTMLSelectElement>("#waveform")!
 const volume = document.querySelector<HTMLInputElement>("#volume")!
 const log = document.querySelector<HTMLOListElement>("#log")!
 
-let synth: ThereminSynth | undefined
+// The synth listens from the start, so every event drives it whatever the hand source: pointer,
+// keyboard, Leap Motion or camera. Browsers keep audio suspended until a user gesture, so the
+// first click or key press anywhere unlocks it.
+const synth = new ThereminSynth()
+synth.waveform = waveform.value as OscillatorType
+synth.output.gain.value = Number(volume.value)
+synth.attach(theremid)
+theremid.analyser = synth.analyser
 
-// Audio can only start from a user gesture, so the synth is created on first interaction.
-function ensureSynth() {
-	if (!synth) {
-		synth = new ThereminSynth()
-		synth.waveform = waveform.value as OscillatorType
-		synth.output.gain.value = Number(volume.value)
-		synth.attach(theremid)
-		theremid.analyser = synth.analyser
-	}
-	return synth
+const { context } = synth
+let wanted = true
+
+function showState() {
+	const on = context.state === "running"
+	button.setAttribute("aria-pressed", String(on))
+	button.textContent = on ? "Stop sound" : "Start sound"
+	button.classList.toggle("waiting", wanted && !on)
 }
 
 async function setSound(on: boolean) {
-	const context = ensureSynth().context
+	wanted = on
 	await (on ? context.resume() : context.suspend())
-	button.setAttribute("aria-pressed", String(on))
-	button.textContent = on ? "Stop sound" : "Start sound"
+	showState()
 }
 
-button.addEventListener("click", () => void setSound(button.getAttribute("aria-pressed") !== "true"))
-theremid.addEventListener("pointerdown", () => {
-	if (!synth) {
+context.addEventListener("statechange", showState)
+showState()
+
+button.addEventListener("click", () => void setSound(context.state !== "running"))
+
+// Capture at the window, before the surface stops its own key events from reaching the page.
+const unlock = (event: Event) => {
+	if (wanted && context.state !== "running" && event.target !== button) {
 		void setSound(true)
 	}
-})
-waveform.addEventListener("change", () => {
-	if (synth) {
-		synth.waveform = waveform.value as OscillatorType
-	}
-})
-volume.addEventListener("input", () => {
-	if (synth) {
-		synth.output.gain.value = Number(volume.value)
-	}
-})
+}
+for (const type of ["pointerdown", "keydown"]) {
+	window.addEventListener(type, unlock, { capture: true })
+}
+
+waveform.addEventListener("change", () => (synth.waveform = waveform.value as OscillatorType))
+volume.addEventListener("input", () => (synth.output.gain.value = Number(volume.value)))
 
 const hex = (word: number) => word.toString(16).padStart(8, "0")
 for (const type of ["noteOn", "noteOff", "pitchBend", "controlChange"]) {
