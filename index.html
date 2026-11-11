@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Theremid</title>
+		<meta name="description" content="Play in the air: a Leap Motion, camera and touch theremin with many play modes and visual surfaces." />
+		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2307080d'/%3E%3Cpath d='M4 20c4-10 8-10 12 0s8 10 12 0' fill='none' stroke='%237df9ff' stroke-width='3'/%3E%3C/svg%3E" />
+		<link rel="stylesheet" href="/src/demo/demo.css" />
+	</head>
+	<body>
+		<header>
+			<h1>Theremid</h1>
+			<p>Play in the air. Press and drag, wave over a Leap Motion, or turn on the camera. Focus the surface and use the arrow keys and Space to play by keyboard.</p>
+		</header>
+		<main>
+			<theremid-input id="theremid" mode="glide" surface="aether" scale="pentatonic-minor" key="A" low="45" high="81"></theremid-input>
+			<section class="panel" aria-label="Sound">
+				<button id="sound" type="button" aria-pressed="false">Start sound</button>
+				<label>Waveform
+					<select id="waveform">
+						<option value="sawtooth">Sawtooth</option>
+						<option value="sine">Sine</option>
+						<option value="triangle">Triangle</option>
+						<option value="square">Square</option>
+					</select>
+				</label>
+				<label>Volume <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8" /></label>
+				<span class="hint">Sound comes from a small built in synth here. In HarmonEasy, the chain's outputs make the sound.</span>
+			</section>
+			<details class="panel">
+				<summary>MIDI 2.0 event log</summary>
+				<ol id="log" aria-live="off"></ol>
+			</details>
+		</main>
+		<script type="module" src="/src/demo/main.ts"></script>
+	</body>
+</html>

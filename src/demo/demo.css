@@ -1,0 +1,109 @@
+:root {
+	color-scheme: dark;
+	--background: #04050a;
+	--text: #e9edf6;
+	--muted: #8a93a6;
+	--accent: #7df9ff;
+	font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body {
+	margin: 0;
+	padding: 24px 16px 48px;
+	background: radial-gradient(circle at 70% -10%, #1b1f3a, var(--background) 60%);
+	color: var(--text);
+	min-height: 100vh;
+	box-sizing: border-box;
+}
+
+header,
+main {
+	max-width: 1100px;
+	margin: 0 auto;
+}
+
+h1 {
+	margin: 0 0 4px;
+	font-size: 32px;
+	letter-spacing: 0.04em;
+}
+
+header p {
+	margin: 0 0 16px;
+	color: var(--muted);
+	max-width: 70ch;
+}
+
+theremid-input {
+	--theremid-height: min(72vh, 640px);
+}
+
+.panel {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px 16px;
+	align-items: center;
+	margin-top: 12px;
+	padding: 10px 12px;
+	border: 1px solid #2a2f3d;
+	border-radius: 10px;
+	background: #10121a;
+}
+
+details.panel {
+	display: block;
+}
+
+button {
+	font: inherit;
+	font-weight: 600;
+	padding: 6px 14px;
+	border-radius: 8px;
+	border: 1px solid var(--accent);
+	background: transparent;
+	color: var(--accent);
+	cursor: pointer;
+}
+
+button[aria-pressed="true"] {
+	background: var(--accent);
+	color: #04050a;
+}
+
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+summary:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+select {
+	font: inherit;
+	color: var(--text);
+	background: #04050a;
+	border: 1px solid #2a2f3d;
+	border-radius: 6px;
+	padding: 3px 6px;
+}
+
+label {
+	display: inline-flex;
+	gap: 6px;
+	align-items: center;
+	color: var(--muted);
+}
+
+.hint {
+	color: var(--muted);
+	font-size: 13px;
+}
+
+#log {
+	margin: 8px 0 0;
+	padding-left: 1.5em;
+	max-height: 220px;
+	overflow: auto;
+	font: 12px/1.6 ui-monospace, "Cascadia Code", monospace;
+	color: var(--muted);
+}
