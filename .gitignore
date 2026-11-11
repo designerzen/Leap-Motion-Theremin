@@ -44,3 +44,6 @@ coverage
 #specific
 dist
 build
+
+# Theremid
+dist-demo

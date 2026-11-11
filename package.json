@@ -1,36 +1,54 @@
 {
-  "name": "Leap-Motion-Theremin",
-  "version": "0.0.1",
-  "description": "A Leap motion powered theremin for WebGL powered browsers",
-  "dependencies": {},
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/designerzen/Leap-Motion-Theremin"
-  },
-  "keywords": [
-    "Leap Motion",
-    "Audio",
-    "ThreeJS"
-  ],
-  "author": "designerzen",
-  "license": "GPL2",
-  "devDependencies": {
-    "del": "^0.1.3",
-    "gulp": "^3.8.8",
-    "gulp-autoprefixer": "0.0.10",
-    "gulp-concat": "^2.3.4",
-    "gulp-connect": "^2.2.0",
-    "gulp-gh-pages": "^0.5.4",
-    "gulp-htmlmin": "^0.2.0",
-    "gulp-imagemin": "^1.0.1",
-    "gulp-jade": "^0.7.0",
-    "gulp-jshint": "^1.9.0",
-    "gulp-less": "^1.3.5",
-    "gulp-livereload": "^2.1.1",
-    "gulp-minify": "0.0.3",
-    "gulp-newer": "^0.3.0",
-    "gulp-sourcemaps": "^1.1.3",
-    "gulp-uglify": "^1.0.0",
-    "run-sequence": "^1.0.1"
-  }
+	"name": "theremid",
+	"version": "2.0.0",
+	"description": "A hands-in-the-air instrument controller for the web: Leap Motion, camera and touch theremin with many play modes and visual surfaces. Packaged as a HarmonEasy input.",
+	"type": "module",
+	"license": "GPL-2.0",
+	"author": "designerzen",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/designerzen/Leap-Motion-Theremin"
+	},
+	"keywords": [
+		"theremin",
+		"leap motion",
+		"ultraleap",
+		"hand tracking",
+		"mediapipe",
+		"web components",
+		"midi 2.0",
+		"harmoneasy"
+	],
+	"files": [
+		"dist",
+		"src"
+	],
+	"main": "./dist/theremid.js",
+	"module": "./dist/theremid.js",
+	"types": "./dist/types/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/types/index.d.ts",
+			"import": "./dist/theremid.js"
+		},
+		"./source": "./src/index.ts",
+		"./harmoneasy": "./src/harmoneasy.ts"
+	},
+	"sideEffects": [
+		"./src/index.ts",
+		"./dist/theremid.js"
+	],
+	"scripts": {
+		"dev": "vite",
+		"build": "tsc -p tsconfig.build.json && node scripts/fix-declarations.mjs && vite build && vite build --mode demo",
+		"preview": "vite preview --outDir dist-demo",
+		"test": "vitest",
+		"type-check": "tsc --noEmit"
+	},
+	"devDependencies": {
+		"happy-dom": "^21.0.4",
+		"typescript": "^7.0.2",
+		"vite": "^8.3.7",
+		"vitest": "^5.1.0"
+	}
 }
