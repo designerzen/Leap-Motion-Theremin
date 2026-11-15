@@ -1,0 +1,40 @@
+# Build the demo and publish it to the gh-pages branch, which GitHub Pages serves.
+name: Deploy demo
+
+on:
+  push:
+    branches: [master, theremid-harmoneasy]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec vitest run
+      - run: pnpm run build
+
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist-demo
+          publish_branch: gh-pages
+          commit_message: "Deploy demo from ${{ github.sha }}"
