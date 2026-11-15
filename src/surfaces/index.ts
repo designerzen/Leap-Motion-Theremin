@@ -2,6 +2,7 @@ import type { Definition, Surface } from "../types.ts"
 import { Aurora, Nebula, Scope } from "./atmospheric.ts"
 import { Aether, Ribbon, Strings } from "./classic.ts"
 import { Horizon, Lattice, Orbit } from "./spatial.ts"
+import { Hologram, Terrain } from "./world.ts"
 
 export const SURFACES: readonly Definition<Surface>[] = [
 	{
@@ -57,6 +58,18 @@ export const SURFACES: readonly Definition<Surface>[] = [
 		name: "Aurora",
 		description: "Northern lights: every note raises a curtain of light.",
 		create: () => new Aurora()
+	},
+	{
+		id: "hologram",
+		name: "Hologram",
+		description: "The original 2014 scene in 3D: fog, a sphere, a box per hand, an audio point cloud and bone hands, with film grain and a glitch when you make a fist.",
+		create: () => new Hologram()
+	},
+	{
+		id: "terrain",
+		name: "Terrain",
+		description: "A wireframe landscape rolling out of the sound, with glowing pillars for the scale notes and your hands floating above.",
+		create: () => new Terrain()
 	}
 ]
 

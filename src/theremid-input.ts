@@ -23,24 +23,27 @@ import { CameraTracker } from "./tracking/camera.ts"
 import { DEFAULT_LEAP_URL, LeapTracker } from "./tracking/leap.ts"
 import { KeyboardTracker, PointerTracker } from "./tracking/pointer.ts"
 import type { HandTracker } from "./tracking/tracker.ts"
-import type {
-	DrawHand,
-	Hand,
-	Mode,
-	NoteEvent,
-	PerformanceSettings,
-	PlayingHand,
-	Surface,
-	Theme
+import {
+	HAND_BONES,
+	JOINT_COUNT,
+	PALM_OUTLINE,
+	type DrawHand,
+	type Hand,
+	type Mode,
+	type NoteEvent,
+	type PerformanceSettings,
+	type PlayingHand,
+	type Surface,
+	type Theme
 } from "./types.ts"
 import styles from "./theremid-input.css?inline"
 
 export const TAG = "theremid-input"
 
 const GATES = {
-	presence: "Hand present",
-	pinch: "Pinch to play",
-	open: "Open hand plays, fist mutes"
+	presence: "A hand is in view",
+	pinch: "Pinching",
+	open: "The hand is open (a fist mutes)"
 } as const
 type Gate = keyof typeof GATES
 
@@ -68,6 +71,13 @@ const SETTINGS = [
 	"disabled",
 	"muted"
 ] as const
+
+const HAND_SCALE = 0.7
+
+const SOURCE_HELP = {
+	leap: "Track hands with a Leap Motion or Ultraleap sensor through its tracking service",
+	camera: "Track hands with the camera; the model downloads on first use"
+} as const
 
 const number = (value: string | null, fallback: number, min: number, max: number) => {
 	const parsed = value === null || value.trim() === "" ? NaN : Number(value)
@@ -98,6 +108,10 @@ export class TheremidInput extends HTMLElement {
 	readonly root: ShadowRoot
 	#canvas: HTMLCanvasElement
 	#context: CanvasRenderingContext2D | null
+	/** Created on demand beneath the 2D canvas for surfaces that draw in 3D. */
+	#glCanvas?: HTMLCanvasElement
+	/** `null` once WebGL2 has been tried and refused. */
+	#gl?: WebGL2RenderingContext | null
 	#performance: Performance
 	#mode: Mode
 	#modeId = ""
@@ -307,6 +321,16 @@ export class TheremidInput extends HTMLElement {
 			},
 			{ signal }
 		)
+		const more = form.querySelector<HTMLButtonElement>(".more")!
+		more.addEventListener(
+			"click",
+			() => {
+				const advanced = form.querySelector<HTMLElement>(".advanced")!
+				advanced.hidden = !advanced.hidden
+				more.setAttribute("aria-expanded", String(!advanced.hidden))
+			},
+			{ signal }
+		)
 		// Stop page level shortcuts (such as a host's QWERTY keyboard input) while playing here.
 		for (const type of ["keydown", "keyup"]) {
 			this.#canvas.addEventListener(type, (event) => event.stopPropagation(), { signal })
@@ -329,6 +353,7 @@ export class TheremidInput extends HTMLElement {
 		this.#syncTrackers()
 		this.#readTheme()
 		this.#syncControls()
+		this.#syncGl()
 		this.#last = performance.now()
 		this.#frame = requestAnimationFrame((time) => this.#tick(time))
 	}
@@ -343,6 +368,7 @@ export class TheremidInput extends HTMLElement {
 			tracker?.stop()
 		}
 		this.#trackers = []
+		this.#surface.dispose?.()
 	}
 
 	attributeChangedCallback(name: string, previous: string | null, value: string | null) {
@@ -362,9 +388,11 @@ export class TheremidInput extends HTMLElement {
 			case "surface": {
 				const surface = findSurface(value)
 				if (surface.id !== this.#surfaceId) {
+					this.#surface.dispose?.()
 					this.#surface = surface.create()
 					this.#surfaceId = surface.id
 					this.#surface.resize?.(this.#size.width, this.#size.height)
+					this.#syncGl()
 					this.#clearCanvas()
 				}
 				break
@@ -505,6 +533,10 @@ export class TheremidInput extends HTMLElement {
 		this.#canvas.width = Math.round(width * ratio)
 		this.#canvas.height = Math.round(height * ratio)
 		this.#context?.setTransform(ratio, 0, 0, ratio, 0, 0)
+		if (this.#glCanvas) {
+			this.#glCanvas.width = Math.round(width * ratio)
+			this.#glCanvas.height = Math.round(height * ratio)
+		}
 		this.#surface.resize?.(width, height)
 		this.#readTheme()
 		this.#clearCanvas()
@@ -515,8 +547,40 @@ export class TheremidInput extends HTMLElement {
 		if (!g) {
 			return
 		}
+		if (this.#surface.gl) {
+			// The 2D canvas is a transparent overlay above the 3D view.
+			g.clearRect(0, 0, this.#size.width, this.#size.height)
+			return
+		}
 		g.fillStyle = this.#theme.background
 		g.fillRect(0, 0, this.#size.width, this.#size.height)
+	}
+
+	/** Show a WebGL2 canvas beneath the overlay while a 3D surface is selected. */
+	#syncGl() {
+		if (!this.#surface.gl) {
+			this.#glCanvas?.toggleAttribute("hidden", true)
+			return
+		}
+		if (!this.#glCanvas) {
+			const canvas = document.createElement("canvas")
+			canvas.className = "gl"
+			canvas.setAttribute("aria-hidden", "true")
+			this.root.querySelector(".frame")!.prepend(canvas)
+			this.#glCanvas = canvas
+			this.#gl =
+				canvas.getContext("webgl2", { antialias: true, alpha: false, powerPreference: "high-performance" }) ??
+				null
+			canvas.addEventListener("webglcontextlost", (event) => {
+				event.preventDefault()
+				this.#surface.dispose?.()
+			})
+			canvas.addEventListener("webglcontextrestored", () => this.#surface.dispose?.())
+			const { width, height, ratio } = this.#size
+			canvas.width = Math.round(width * ratio)
+			canvas.height = Math.round(height * ratio)
+		}
+		this.#glCanvas.toggleAttribute("hidden", false)
 	}
 
 	#collect(time: number, dt: number): Hand[] {
@@ -612,6 +676,9 @@ export class TheremidInput extends HTMLElement {
 			this.analyser.getFloatTimeDomainData(this.#waveform)
 		}
 		g.save()
+		if (this.#surface.gl) {
+			g.clearRect(0, 0, width, height)
+		}
 		this.#surface.draw({
 			g,
 			width,
@@ -623,7 +690,9 @@ export class TheremidInput extends HTMLElement {
 			events: this.#events,
 			theme: this.#theme,
 			reducedMotion: this.#reducedMotion,
-			waveform: this.analyser ? this.#waveform : undefined
+			waveform: this.analyser ? this.#waveform : undefined,
+			gl: this.#surface.gl ? (this.#gl ?? undefined) : undefined,
+			pixelRatio: this.#size.ratio
 		})
 		g.restore()
 		const video = this.#camera?.status === "ready" ? this.#camera.video : undefined
@@ -644,10 +713,45 @@ export class TheremidInput extends HTMLElement {
 		}
 	}
 
+	/** The player's fingers, when a tracker supplies joints and the surface is not drawing them in 3D. */
+	#drawSkeleton(g: CanvasRenderingContext2D, hand: DrawHand, hue: number, sounding: boolean) {
+		const joints = hand.joints!
+		const { width, height } = this.#size
+		// Shrink the skeleton about the palm; at full size a hand covers much of a Leap's tracking volume.
+		const x = (index: number) => hand.px + (joints[index * 3]! * width - hand.px) * HAND_SCALE
+		const y = (index: number) => hand.py + (joints[index * 3 + 1]! * height - hand.py) * HAND_SCALE
+		g.save()
+		g.lineCap = "round"
+		g.lineJoin = "round"
+		g.beginPath()
+		PALM_OUTLINE.forEach((index, order) => (order ? g.lineTo(x(index), y(index)) : g.moveTo(x(index), y(index))))
+		g.closePath()
+		g.fillStyle = hsl(hue, 70, 60, sounding ? 0.2 : 0.08)
+		g.fill()
+		g.strokeStyle = hsl(hue, sounding ? 90 : 30, 72, 0.85)
+		g.lineWidth = 2 + hand.z * 3
+		g.beginPath()
+		for (const [from, to] of HAND_BONES) {
+			g.moveTo(x(from), y(from))
+			g.lineTo(x(to), y(to))
+		}
+		g.stroke()
+		g.fillStyle = sounding ? "#ffffff" : hsl(hue, 30, 85, 0.9)
+		for (let index = 0; index < JOINT_COUNT; index++) {
+			g.beginPath()
+			g.arc(x(index), y(index), index === 0 ? 4 : 2.5, 0, Math.PI * 2)
+			g.fill()
+		}
+		g.restore()
+	}
+
 	#drawHand(g: CanvasRenderingContext2D, hand: DrawHand) {
 		const sounding = hand.notes.length > 0
 		const hue = hueFor(hand.gesture.pitch)
 		const radius = 9 + hand.gesture.expression * 14
+		if (hand.joints && !this.#surface.gl) {
+			this.#drawSkeleton(g, hand, hue, sounding)
+		}
 		g.save()
 		if (sounding) {
 			const glow = g.createRadialGradient(hand.px, hand.py, 0, hand.px, hand.py, radius * 2.4)
@@ -717,18 +821,15 @@ export class TheremidInput extends HTMLElement {
 		hud.querySelector(".title")!.textContent = `${mode.name} · ${surface.name}`
 		hud.querySelector(".detail")!.textContent =
 			this.#status || `${this.key} ${findScale(this.getAttribute("scale")).name.toLowerCase()}, ${noteName(this.low)}–${noteName(this.high)}`
-		const sources = hud.querySelector(".sources")!
-		sources.replaceChildren(
-			...[this.#leap, this.#camera]
-				.filter((tracker) => tracker && this.sources.has(tracker.source))
-				.map((tracker) => {
-					const pill = document.createElement("span")
-					pill.className = `pill ${tracker!.status}`
-					pill.textContent = tracker!.source === "leap" ? "Leap" : "Camera"
-					pill.title = tracker!.message
-					return pill
-				})
-		)
+		for (const tracker of [this.#leap, this.#camera]) {
+			const toggle = this.root.querySelector<HTMLElement>(`.source[data-source="${tracker?.source}"]`)
+			if (!tracker || !toggle) {
+				continue
+			}
+			const wanted = this.sources.has(tracker.source)
+			toggle.dataset.status = wanted ? tracker.status : "idle"
+			toggle.title = wanted ? tracker.message : SOURCE_HELP[tracker.source]
+		}
 		const describe = this.root.querySelector("#source-status")
 		if (describe) {
 			describe.textContent = [this.#leap, this.#camera]
@@ -794,6 +895,17 @@ export class TheremidInput extends HTMLElement {
 		for (const element of form.elements) {
 			;(element as HTMLInputElement).disabled = this.disabled
 		}
+		// Explain the current mode and surface, and show only the extra settings this mode uses.
+		const mode = findMode(this.#modeId)
+		form.querySelector(".hint[data-hint=mode]")!.textContent = mode.description
+		form.querySelector(".hint[data-hint=surface]")!.textContent = findSurface(this.#surfaceId).description
+		let extras = 0
+		for (const field of form.querySelectorAll<HTMLElement>("[data-setting]")) {
+			const shown = mode.settings?.includes(field.dataset.setting!) ?? false
+			field.hidden = !shown
+			extras += shown ? 1 : 0
+		}
+		form.querySelector<HTMLElement>(".extras")!.hidden = extras === 0
 		this.#canvas.setAttribute("aria-disabled", String(this.disabled))
 		this.#renderStatus()
 	}
@@ -809,8 +921,7 @@ export class TheremidInput extends HTMLElement {
 				<canvas part="surface" tabindex="0" role="application" aria-roledescription="theremin"
 					aria-label="Theremid playing surface" aria-describedby="help source-status"></canvas>
 				<div class="hud" part="hud" aria-hidden="true">
-					<div><strong class="title"></strong><span class="detail"></span></div>
-					<div class="sources"></div>
+					<strong class="title"></strong><span class="detail"></span>
 				</div>
 				<output part="status" class="visually-hidden" aria-live="polite"></output>
 				<p id="help" class="visually-hidden">Press and drag, or wave your hands over a Leap Motion or camera.
@@ -819,22 +930,55 @@ export class TheremidInput extends HTMLElement {
 				<p id="source-status" class="visually-hidden"></p>
 			</div>
 			<form class="controls" part="controls" aria-label="Theremid settings">
-				<label>Mode <select name="mode">${options(MODES)}</select></label>
-				<label>Surface <select name="surface">${options(SURFACES)}</select></label>
-				<label>Key <select name="key">${keys}</select></label>
-				<label>Scale <select name="scale">${options(SCALES)}</select></label>
-				<label>Lowest note <input name="low" type="number" min="0" max="126" step="1"></label>
-				<label>Highest note <input name="high" type="number" min="1" max="127" step="1"></label>
-				<label>Chord <select name="chord">${chords}</select></label>
-				<label>Tempo <input name="bpm" type="number" min="20" max="300" step="1"></label>
-				<label>Autotune <input name="autotune" type="range" min="0" max="1" step="0.05"></label>
-				<label>Note length <input name="sustain" type="range" min="0" max="1" step="0.05"></label>
-				<label>Bend range <input name="bend-range" type="number" min="1" max="96" step="1"></label>
-				<label><input name="mpe" type="checkbox"> MPE</label>
-				<label><input name="source-leap" type="checkbox"> Leap Motion</label>
-				<label><input name="source-camera" type="checkbox"> Camera</label>
-				<label>Hand gate <select name="gate">${gates}</select></label>
-				<label>Smoothing <input name="smoothing" type="range" min="0" max="0.95" step="0.05"></label>
+				<div class="row">
+					<div class="field">
+						<label>Mode <select name="mode">${options(MODES)}</select></label>
+						<small class="hint" data-hint="mode"></small>
+					</div>
+					<div class="field">
+						<label>Surface <select name="surface">${options(SURFACES)}</select></label>
+						<small class="hint" data-hint="surface"></small>
+					</div>
+					<label title="The root note of the scale">Key <select name="key">${keys}</select></label>
+					<label title="Which notes the surface offers">Scale <select name="scale">${options(SCALES)}</select></label>
+					<span class="grow"></span>
+					<label class="source" data-source="leap" data-status="idle" title="${SOURCE_HELP.leap}">
+						<input name="source-leap" type="checkbox"><span class="dot"></span>Leap Motion</label>
+					<label class="source" data-source="camera" data-status="idle" title="${SOURCE_HELP.camera}">
+						<input name="source-camera" type="checkbox"><span class="dot"></span>Camera</label>
+					<button type="button" class="more" aria-expanded="false" title="Range, hands and MIDI settings">More</button>
+				</div>
+				<div class="row extras" hidden>
+					<label data-setting="chord" title="The chord shape built on the note under each hand">Chord
+						<select name="chord">${chords}</select></label>
+					<label data-setting="bpm" title="Beats per minute for the arpeggiator and pulse">Tempo
+						<input name="bpm" type="number" min="20" max="300" step="1"></label>
+					<label data-setting="autotune" title="How firmly a resting hand is pulled onto a scale note">Settle
+						<input name="autotune" type="range" min="0" max="1" step="0.05"></label>
+					<label data-setting="sustain" title="How long each repeated or plucked note rings">Note length
+						<input name="sustain" type="range" min="0" max="1" step="0.05"></label>
+				</div>
+				<div class="row advanced" hidden>
+					<fieldset title="The MIDI notes across the surface, lowest at the left">
+						<legend>Range</legend>
+						<label>Lowest <input name="low" type="number" min="0" max="126" step="1"></label>
+						<label>Highest <input name="high" type="number" min="1" max="127" step="1"></label>
+					</fieldset>
+					<fieldset>
+						<legend>Tracked hands</legend>
+						<label title="When a Leap Motion or camera hand makes sound">Play when
+							<select name="gate">${gates}</select></label>
+						<label title="Smooths jittery tracking; higher is steadier but slower to follow">Steadiness
+							<input name="smoothing" type="range" min="0" max="0.95" step="0.05"></label>
+					</fieldset>
+					<fieldset>
+						<legend>MIDI</legend>
+						<label title="Semitones a full pitch bend covers; match the instrument that receives it">Bend range
+							<input name="bend-range" type="number" min="1" max="96" step="1"></label>
+						<label title="Give every hand its own channel so each can bend independently">
+							<input name="mpe" type="checkbox">A channel per hand (MPE)</label>
+					</fieldset>
+				</div>
 			</form>`
 	}
 }

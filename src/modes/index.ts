@@ -318,6 +318,7 @@ export const MODES: readonly Definition<Mode>[] = [
 	},
 	{
 		id: "autotune",
+		settings: ["autotune"],
 		name: "Autotune glide",
 		description: "Glides freely while moving and settles into the scale when the hand rests.",
 		create: () => new Glide(true)
@@ -337,24 +338,28 @@ export const MODES: readonly Definition<Mode>[] = [
 	},
 	{
 		id: "chords",
+		settings: ["chord"],
 		name: "Chords",
 		description: "Each hand holds a diatonic chord built on the scale degree under it.",
 		create: () => new Snapped((note, frame) => frame.tonality.chord(note, frame.settings.chord))
 	},
 	{
 		id: "arpeggio",
+		settings: ["chord", "bpm"],
 		name: "Arpeggiator",
 		description: "Arpeggiates the chord under each hand; raise the hand to play faster.",
 		create: () => new Rhythmic(arpeggio)
 	},
 	{
 		id: "pulse",
+		settings: ["bpm", "sustain"],
 		name: "Pulse",
 		description: "Repeats the note under each hand in time; raise the hand to subdivide.",
 		create: () => new Rhythmic((note) => note)
 	},
 	{
 		id: "strum",
+		settings: ["sustain"],
 		name: "Strum",
 		description: "Sweep across the scale like strings; faster sweeps pluck harder.",
 		create: () => new Strum()

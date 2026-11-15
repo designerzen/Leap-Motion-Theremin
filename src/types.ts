@@ -22,7 +22,37 @@ export interface Hand {
 	active: boolean
 	/** Timestamp (ms) when this hand was first seen. */
 	born: number
+	/**
+	 * Finger joints when the source tracks them (Leap Motion, camera): 21 points as x, y, z
+	 * triples in the same space as x, y and z above, in the order of JOINT_NAMES.
+	 */
+	joints?: Float32Array
 }
+
+/** MediaPipe's 21 point hand topology; Leap bones are mapped onto the same indices. */
+export const JOINT_NAMES = [
+	"wrist",
+	"thumb-cmc", "thumb-mcp", "thumb-ip", "thumb-tip",
+	"index-mcp", "index-pip", "index-dip", "index-tip",
+	"middle-mcp", "middle-pip", "middle-dip", "middle-tip",
+	"ring-mcp", "ring-pip", "ring-dip", "ring-tip",
+	"pinky-mcp", "pinky-pip", "pinky-dip", "pinky-tip"
+] as const
+
+export const JOINT_COUNT = JOINT_NAMES.length
+
+/** Pairs of joint indices that a bone connects, finger by finger then across the palm. */
+export const HAND_BONES: readonly (readonly [number, number])[] = [
+	[0, 1], [1, 2], [2, 3], [3, 4],
+	[0, 5], [5, 6], [6, 7], [7, 8],
+	[9, 10], [10, 11], [11, 12],
+	[13, 14], [14, 15], [15, 16],
+	[0, 17], [17, 18], [18, 19], [19, 20],
+	[5, 9], [9, 13], [13, 17]
+]
+
+/** Joints that outline the palm, in order, for a filled palm shape. */
+export const PALM_OUTLINE: readonly number[] = [0, 1, 5, 9, 13, 17]
 
 /** What a surface makes of a hand: a fractional MIDI pitch and an expression amount. */
 export interface Gesture {
@@ -117,18 +147,32 @@ export interface DrawFrame {
 	reducedMotion: boolean
 	/** Time domain samples (-1..1) when an analyser is attached, otherwise undefined. */
 	waveform?: Float32Array
+	/**
+	 * For surfaces that declare `gl`: a WebGL2 context on a canvas beneath `g`. The 2D context is
+	 * then a transparent overlay for labels and the hand cursors. Absent when WebGL2 is unavailable,
+	 * in which case the surface should draw a 2D fallback.
+	 */
+	gl?: WebGL2RenderingContext
+	/** Device pixel size of the WebGL canvas (`width` and `height` are CSS pixels). */
+	pixelRatio: number
 }
 
 export interface Surface {
+	/** Draw in 3D: the element supplies a WebGL2 canvas beneath the 2D overlay. */
+	readonly gl?: boolean
 	/** Called with the canvas size in CSS pixels before mapping or drawing when it changes. */
 	resize?(width: number, height: number): void
 	map(hand: Hand, tonality: Tonality): Gesture
 	draw(frame: DrawFrame): void
+	/** Release GPU resources when the surface is swapped out or the element is removed. */
+	dispose?(): void
 }
 
 export interface Definition<T> {
 	id: string
 	name: string
 	description: string
+	/** Names of the settings controls that matter for this item, shown when it is selected. */
+	settings?: readonly string[]
 	create(): T
 }

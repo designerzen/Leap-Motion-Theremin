@@ -61,6 +61,15 @@ export function handFromLandmarks(
 	const reach =
 		[8, 12, 16, 20].reduce((sum, index) => sum + distance(points[index]!, centre), 0) / 4 / size
 	const across = { x: points[17]!.x - points[5]!.x, y: points[17]!.y - points[5]!.y }
+	const z = clamp((size - 0.08) / 0.3, 0, 1)
+	const joints = previous?.joints instanceof Float32Array && previous.joints.length === 63
+		? previous.joints : new Float32Array(63)
+	for (let index = 0; index < 21; index++) {
+		const point = points[index]!
+		joints[index * 3] = clamp(mirror ? 1 - point.x : point.x, 0, 1)
+		joints[index * 3 + 1] = clamp(point.y, 0, 1)
+		joints[index * 3 + 2] = clamp(z - point.z * 2, 0, 1)
+	}
 	return {
 		id: `camera:${side}`,
 		source: "camera",
@@ -68,12 +77,13 @@ export function handFromLandmarks(
 		x: clamp(mirror ? 1 - centre.x : centre.x, 0, 1),
 		y: clamp(centre.y, 0, 1),
 		// A larger hand in frame is closer to the camera, i.e. pushed further.
-		z: clamp((size - 0.08) / 0.3, 0, 1),
+		z,
 		grab: clamp(1 - (reach - 0.7) / 0.9, 0, 1),
 		pinch: clamp(1 - (distance(points[4]!, points[8]!) / size - 0.25) / 0.6, 0, 1),
 		roll: clamp(Math.atan2(across.y, mirror ? -across.x : across.x) / Math.PI, -1, 1),
 		active: true,
-		born: previous?.born ?? time
+		born: previous?.born ?? time,
+		joints
 	}
 }
 

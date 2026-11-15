@@ -11,16 +11,115 @@ interface LeapHand {
 	type: "left" | "right"
 	palmPosition: Vector
 	palmNormal?: Vector
+	wrist?: Vector
+	direction?: Vector
+	palmWidth?: number
 	grabStrength?: number
 	pinchStrength?: number
 }
 
-interface LeapFrame {
+interface LeapPointable {
+	handId: number
+	type: 0 | 1 | 2 | 3 | 4
+	tool: boolean
+	carpPosition: Vector
+	mcpPosition: Vector
+	pipPosition: Vector
+	dipPosition: Vector
+	tipPosition: Vector
+}
+
+export interface LeapFrame {
 	hands?: LeapHand[]
+	pointables?: LeapPointable[]
 	interactionBox?: { center: Vector; size: Vector }
 }
 
 const STALE_AFTER = 500
+const jointBuffers = new WeakMap<Hand, Float32Array>()
+const fingerPositions = ["mcpPosition", "pipPosition", "dipPosition", "tipPosition"] as const
+
+const normalise = (value: number, centre: number, size: number, reverse = false) =>
+	clamp(0.5 + (reverse ? -1 : 1) * (value - centre) / size, 0, 1)
+
+/** Update tracked hands in place, retaining their joint buffers between frames. */
+export function handsFromFrame(frame: LeapFrame, previous: Map<number, Hand>, now: number): Map<number, Hand> {
+	const box = frame.interactionBox ?? { center: [0, 200, 0], size: [235, 235, 147] }
+	const fingers = new Map<number, LeapPointable[]>()
+	for (const pointable of frame.pointables ?? []) {
+		if (pointable.tool) {
+			continue
+		}
+		const group = fingers.get(pointable.handId)
+		if (group) {
+			group.push(pointable)
+		} else {
+			fingers.set(pointable.handId, [pointable])
+		}
+	}
+	const seen = new Set<number>()
+	for (const leap of frame.hands ?? []) {
+		seen.add(leap.id)
+		const [px, py, pz] = leap.palmPosition
+		const [nx, ny] = leap.palmNormal ?? [0, -1, 0]
+		const hand: Hand = previous.get(leap.id) ?? {
+			id: `leap:${leap.id}`,
+			source: "leap",
+			side: leap.type === "left" ? "left" : "right",
+			x: 0.5,
+			y: 0.5,
+			z: 0.5,
+			grab: 0,
+			pinch: 0,
+			roll: 0,
+			active: true,
+			born: now
+		}
+		hand.x = normalise(px, box.center[0]!, box.size[0]!)
+		hand.y = normalise(py, box.center[1]!, box.size[1]!, true)
+		// Leap z grows towards the player; push grows towards the screen.
+		hand.z = normalise(pz, box.center[2]!, box.size[2]!, true)
+		hand.grab = clamp(leap.grabStrength ?? 0, 0, 1)
+		hand.pinch = clamp(leap.pinchStrength ?? 0, 0, 1)
+		hand.roll = clamp(Math.atan2(nx, -ny) / Math.PI, -1, 1)
+		const pointables = fingers.get(leap.id)
+		if (pointables?.length) {
+			const joints = hand.joints instanceof Float32Array && hand.joints.length === 63
+				? hand.joints : jointBuffers.get(hand) ?? new Float32Array(63)
+			jointBuffers.set(hand, joints)
+			// Missing fingers collapse to the wrist instead of retaining old positions.
+			for (let axis = 0; axis < 3; axis++) {
+				const wrist = leap.wrist?.[axis] ?? (leap.direction
+					? leap.palmPosition[axis]! - leap.direction[axis]! * (leap.palmWidth ?? 80) * 0.6
+					: leap.palmPosition[axis]! - (axis === 1 ? 40 : 0))
+				const value = normalise(wrist, box.center[axis]!, box.size[axis]!, axis !== 0)
+				for (let joint = 0; joint < 21; joint++) {
+					joints[joint * 3 + axis] = value
+				}
+			}
+			for (const finger of pointables) {
+				for (let joint = 0; joint < 4; joint++) {
+					const position = finger[fingerPositions[joint]!]
+					for (let axis = 0; axis < 3; axis++) {
+						joints[(1 + finger.type * 4 + joint) * 3 + axis] = normalise(
+							position[axis]!, box.center[axis]!, box.size[axis]!, axis !== 0
+						)
+					}
+				}
+			}
+			hand.joints = joints
+		} else {
+			hand.joints = undefined
+		}
+		previous.set(leap.id, hand)
+	}
+	for (const id of previous.keys()) {
+		if (!seen.has(id)) {
+			previous.delete(id)
+		}
+	}
+	return previous
+}
 
 /**
  * Leap Motion / Ultraleap hands over the tracking service's WebSocket JSON protocol (v6), so no
@@ -115,39 +214,7 @@ export class LeapTracker extends BaseTracker {
 	#frame(frame: LeapFrame) {
 		const now = performance.now()
 		this.#lastFrame = now
-		const box = frame.interactionBox ?? { center: [0, 200, 0], size: [235, 235, 147] }
-		const seen = new Set<number>()
-		for (const leap of frame.hands ?? []) {
-			seen.add(leap.id)
-			const [px, py, pz] = leap.palmPosition
-			const [nx, ny] = leap.palmNormal ?? [0, -1, 0]
-			const hand: Hand = this.#hands.get(leap.id) ?? {
-				id: `leap:${leap.id}`,
-				source: "leap",
-				side: leap.type === "left" ? "left" : "right",
-				x: 0.5,
-				y: 0.5,
-				z: 0.5,
-				grab: 0,
-				pinch: 0,
-				roll: 0,
-				active: true,
-				born: now
-			}
-			hand.x = clamp((px - box.center[0]) / box.size[0] + 0.5, 0, 1)
-			hand.y = clamp(1 - ((py - box.center[1]) / box.size[1] + 0.5), 0, 1)
-			// Leap z grows towards the player; push grows towards the screen.
-			hand.z = clamp(0.5 - (pz - box.center[2]) / box.size[2], 0, 1)
-			hand.grab = clamp(leap.grabStrength ?? 0, 0, 1)
-			hand.pinch = clamp(leap.pinchStrength ?? 0, 0, 1)
-			hand.roll = clamp(Math.atan2(nx, -ny) / Math.PI, -1, 1)
-			this.#hands.set(leap.id, hand)
-		}
-		for (const id of this.#hands.keys()) {
-			if (!seen.has(id)) {
-				this.#hands.delete(id)
-			}
-		}
+		handsFromFrame(frame, this.#hands, now)
 	}
 
 	stop() {
