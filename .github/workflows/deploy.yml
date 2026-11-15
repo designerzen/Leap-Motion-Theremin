@@ -1,4 +1,4 @@
-# Build the demo and publish it to the gh-pages branch, which GitHub Pages serves.
+# Build the demo and deploy it to GitHub Pages, which is set to publish from GitHub Actions.
 name: Deploy demo
 
 on:
@@ -7,14 +7,16 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,9 +34,16 @@ jobs:
       - run: pnpm exec vitest run
       - run: pnpm run build
 
-      - uses: peaceiris/actions-gh-pages@v4
+      - uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist-demo
-          publish_branch: gh-pages
-          commit_message: "Deploy demo from ${{ github.sha }}"
+          path: ./dist-demo
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
