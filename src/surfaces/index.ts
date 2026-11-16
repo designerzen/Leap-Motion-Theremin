@@ -62,7 +62,7 @@ export const SURFACES: readonly Definition<Surface>[] = [
 	{
 		id: "hologram",
 		name: "Hologram",
-		description: "The original 2014 scene in 3D: fog, a sphere, a box per hand, an audio point cloud and bone hands, with film grain and a glitch when you make a fist.",
+		description: "The original 2014 scene in 3D: fog, a sphere, a box per hand, an audio point cloud and the original rigged hands, with film grain and a glitch when you make a fist.",
 		create: () => new Hologram()
 	},
 	{
