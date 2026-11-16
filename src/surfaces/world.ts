@@ -1,3 +1,6 @@
+import { loadRig } from "../hand/rig.ts"
+import { SkinnedLit, SkinnedMesh } from "../gl/skin.ts"
+import type { HandSide } from "../types.ts"
 import { GridMesh, LineBatch, Mesh, PointCloud, cubeData, cylinderData, icosahedronData, sphereData } from "../gl/geometry.ts"
 import {
 	Lit,
@@ -49,6 +52,9 @@ const BLACK = new Float32Array([0, 0, 0])
 /** Everything both worlds share on the GPU. */
 class Common {
 	readonly lit: Lit
+	readonly skin: SkinnedLit
+	readonly rigs = new Map<HandSide, SkinnedMesh>()
+	#disposed = false
 	readonly cube: Mesh
 	readonly sphere: Mesh
 	readonly orb: Mesh
@@ -58,6 +64,12 @@ class Common {
 
 	constructor(readonly gl: WebGL2RenderingContext) {
 		this.lit = new Lit(gl)
+		this.skin = new SkinnedLit(gl)
+		for (const side of ["left", "right"] as const) {
+			void loadRig(side).then((rig) => {
+				if (!this.#disposed) this.rigs.set(side, new SkinnedMesh(gl, rig))
+			}).catch((error: unknown) => console.warn("Theremid: hand rig could not load", error))
+		}
 		this.cube = new Mesh(gl, cubeData())
 		this.sphere = new Mesh(gl, sphereData(14, 20))
 		this.orb = new Mesh(gl, icosahedronData())
@@ -67,6 +79,10 @@ class Common {
 	}
 
 	dispose() {
+		this.#disposed = true
+		this.skin.dispose()
+		for (const rig of this.rigs.values()) rig.dispose()
+		this.rigs.clear()
 		this.lit.dispose()
 		for (const mesh of [this.cube, this.sphere, this.orb, this.bone, this.palm]) {
 			mesh.dispose()
@@ -105,6 +121,7 @@ abstract class World implements Surface {
 	#glitch = 0
 	#backgroundCss = ""
 	#accentCss = ""
+	readonly #bones = new Float32Array(21 * 16)
 	readonly #pose = new Float32Array(JOINT_COUNT * 3)
 	readonly #palm = new Float32Array(36)
 	readonly #palmNormals = new Float32Array(36)
@@ -248,7 +265,7 @@ abstract class World implements Surface {
 		out[offset + 2] = (0.5 - z) * this.spanZ
 	}
 
-	/** Hands as translucent bone rigs, or a glowing orb when only a point is tracked. */
+	/** Skinned hands, a loading fallback, or a glowing orb when only a point is tracked. */
 	protected drawHands(frame: DrawFrame, common: Common) {
 		const { lit, bone, sphere, orb } = common
 		const pose = this.#pose
@@ -275,6 +292,13 @@ abstract class World implements Surface {
 						hand.y + (joints[at + 1]! - hand.y) * HAND_SCALE,
 						hand.z + (joints[at + 2]! - hand.z) * HAND_SCALE
 					)
+				}
+				const mesh = common.rigs.get(hand.side)
+				if (mesh) {
+					mesh.rig.pose(pose, this.#bones)
+					common.skin.draw(mesh, this.#bones, lit, this.#tint, this.#emissive)
+					lit.begin()
+					continue
 				}
 				this.#drawPalm(common)
 				const boneRadius = this.spanY * 0.007
@@ -454,7 +478,6 @@ export class Hologram extends World {
 			scale(model, model, 20, height, 20)
 			lit.draw(common.cube, model, this.#boxTint, BLACK, 0.12 + 0.5 * hand.gesture.expression + (sounding ? 0.15 : 0))
 		}
-		this.drawHands(frame, common)
 
 		// The point cloud: vertex i follows sample i and sample i + 1, as in View.prototype.update.
 		const cloud = this.#cloud!
@@ -480,6 +503,11 @@ export class Hologram extends World {
 		points.vec3v("uColour", this.accent)
 		setFog(points, lit.camera, lit.fogColour, lit.fogDensity)
 		cloud.draw()
+
+		// Draw the translucent hands last, with the scene depth buffer still respected.
+		gl.enable(gl.DEPTH_TEST)
+		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+		this.drawHands(frame, common)
 
 		gl.disable(gl.BLEND)
 		gl.depthMask(true)

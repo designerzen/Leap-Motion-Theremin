@@ -34,7 +34,7 @@ Each surface has its own look and its own geometry. The hand's position becomes 
 | Nebula | A particle cloud. Pitch rises upwards. |
 | Oscilloscope | A phosphor scope that draws Lissajous figures when two hands play. |
 | Aurora | Northern lights: every note raises a curtain of light. |
-| Hologram | The original 2014 scene rebuilt in WebGL: fog, a sphere, a box per hand, an audio point cloud, bone hands, film grain and a glitch when you make a fist. |
+| Hologram | The original 2014 scene rebuilt in WebGL: fog, a sphere, a box per hand, an audio point cloud, the original rigged hands, film grain and a glitch when you make a fist. |
 | Terrain | A wireframe landscape rolling out of the sound, with glowing pillars for the scale notes and your hands above it. |
 
 ## Hand sources
@@ -44,7 +44,7 @@ Each surface has its own look and its own geometry. The hand's position becomes 
 - **Leap Motion:** connects to the tracking service's WebSocket JSON protocol (`ws://127.0.0.1:6437/v6.json`), so no vendor SDK is needed. On Ultraleap Gemini, run Ultraleap's WebSocket bridge. It reports palm position, grab, pinch, roll and every finger joint.
 - **Camera:** MediaPipe Hand Landmarker, loaded on demand. It reports the same hand features and joints, and can show a faint mirrored backdrop.
 
-When a source supplies finger joints, the surfaces draw your actual hands: as a skeleton over the 2D surfaces and as translucent bone hands inside the 3D ones, in the manner of the original Leap rigged hand.
+When a source supplies finger joints, the surfaces draw your actual hands: as a skeleton over the 2D surfaces and inside the 3D ones as the original Leap rigged hand mesh itself, skinned from the tracked joints and tinted by how closed the hand is. The two hand meshes (Copyright 2014 LeapMotion, Inc, Apache License 2.0) are extracted from the original `leap.rigged-hand` plugin by `scripts/extract-rig.mjs` and load on demand, about 60 KB gzipped each.
 
 Each hand sends notes with velocity, plus CC11 expression, CC1 modulation (from a fist) and CC74 brightness (from palm roll).
 

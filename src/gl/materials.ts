@@ -29,7 +29,7 @@ void main() {
 }`
 
 /** Lambert lighting from one point light and an ambient term, or the normal as colour. */
-const LIT_FRAGMENT = `#version 300 es
+export const LIT_FRAGMENT = `#version 300 es
 precision highp float;
 ${FOG}
 uniform vec3 uColour;
